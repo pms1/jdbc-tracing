@@ -156,7 +156,7 @@ public class FilterTracingCallback implements TracingCallback {
 	public void exitReturn(Object result, Object instance, String clazz, String method, String signature) {
 		int level = t.get().decrementAndGet();
 		if (debug)
-			System.err.println("RAW EXIT-R " + level + " " + clazz + " " + method + " " + signature);
+			System.err.println("RAW EXIT-R-R " + level + " " + clazz + " " + method + " " + signature);
 		if (level == 0) {
 			if (isInvoke(instance, method, signature)) {
 				Target pop = s.get().removeLast();
@@ -166,6 +166,14 @@ public class FilterTracingCallback implements TracingCallback {
 				clazz = pop.clazz;
 				method = pop.method;
 				signature = pop.signature;
+
+				// if the called method returns void, we have to call the
+				// exitReturn method without the
+				// result parameter
+				if (signature.endsWith("V")) {
+					next.exitReturn(instance, clazz, method, signature);
+					return;
+				}
 			}
 			next.exitReturn(result, instance, clazz, method, signature);
 		}
@@ -175,7 +183,7 @@ public class FilterTracingCallback implements TracingCallback {
 	public void exitReturn(Object instance, String clazz, String method, String signature) {
 		int level = t.get().decrementAndGet();
 		if (debug)
-			System.err.println("RAW EXIT-R " + level + " " + clazz + " " + method + " " + signature);
+			System.err.println("RAW EXIT-R-V " + level + " " + clazz + " " + method + " " + signature);
 		if (level == 0) {
 			if (isInvoke(instance, method, signature)) {
 				Target pop = s.get().removeLast();
