@@ -276,7 +276,7 @@ public class InstumentationCore {
 
 		if (true) {
 
-			run(Paths.get("C:/Users/Mirko/git/jdbc-tracing/jdbc-tracing-maven-plugin/target/it/test1/target/classes"));
+			run(Paths.get("C:/Users/Mirko/git/jdbc-tracing/jdbc-tracing-maven-plugin/target/it/db2/target/classes"));
 
 		} else {
 			Path in = Paths.get("W:/work/workspaces/fisng/workspace/tracing-db/target/tracing-db-0.0.1-SNAPSHOT.jar");
@@ -413,6 +413,7 @@ public class InstumentationCore {
 			for (String t : all) {
 				if (ch.hasSuperClass(c.name, t)) {
 
+					System.err.println("MARK ALL " + c);
 					boolean seenObject = false;
 
 					Set<MethodSignature> m = new HashSet<>();
@@ -612,7 +613,12 @@ public class InstumentationCore {
 
 		try {
 			ClassLoader classLoader = new URLClassLoader(new URL[] { path.toUri().toURL() });
-			process(classLoader, files, (p1, bytes) -> Files.write(path.resolve(p1), bytes));
+			process(classLoader, files, (p1, bytes) -> {
+				Files.write(path.resolve(p1), bytes);
+				Path palt = Paths.get("c:/temp/").resolve(p1);
+				Files.createDirectories(palt.getParent());
+				Files.write(palt, bytes);
+			});
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

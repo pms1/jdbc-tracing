@@ -13,7 +13,8 @@ import org.objectweb.asm.commons.AdviceAdapter;
  *
  */
 public class TracingMethodVisitor extends AdviceAdapter {
-	private final Label startFinally = new Label();
+	private final Label startSuper = new Label();
+	private final Label startBody = new Label();
 
 	private final String owner;
 	private final String name;
@@ -28,6 +29,21 @@ public class TracingMethodVisitor extends AdviceAdapter {
 
 	public static final String callbackInterface = "com/github/pms1/jdbctracing/api/TracingCallback";
 
+	@Override
+	public void visitCode() {
+		if (name.equals("<init>")) {
+			loadCallback();
+			loadArgArray();
+			mv.visitLdcInsn(owner);
+			mv.visitLdcInsn(name);
+			mv.visitLdcInsn(methodDesc);
+			mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, callbackInterface, "initEnter",
+					"([Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", true);
+		}
+		visitLabel(startSuper);
+		super.visitCode();
+	}
+
 	private void invokeTracer(String method, String firstArg) {
 		if ((access & Opcodes.ACC_STATIC) != 0)
 			mv.visitInsn(ACONST_NULL);
@@ -40,6 +56,7 @@ public class TracingMethodVisitor extends AdviceAdapter {
 
 		mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, callbackInterface, method,
 				"(" + firstArg + "Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", true);
+
 	}
 
 	private void loadCallback() {
@@ -51,19 +68,35 @@ public class TracingMethodVisitor extends AdviceAdapter {
 		loadCallback();
 		loadArgArray();
 		invokeTracer("enter", "[Ljava/lang/Object;");
-		visitLabel(startFinally);
+		visitLabel(startBody);
 	}
 
 	public void visitMaxs(int maxStack, int maxLocals) {
-		Label endFinally = new Label();
-		mv.visitTryCatchBlock(startFinally, endFinally, endFinally, "java/lang/Throwable");
-		mv.visitLabel(endFinally);
+		Label endBody = new Label();
+		mv.visitLabel(endBody);
 
+		mv.visitTryCatchBlock(startBody, endBody, endBody, "java/lang/Throwable");
 		dup();
 		loadCallback();
 		swap();
 		invokeTracer("exitException", "Ljava/lang/Throwable;");
 		mv.visitInsn(ATHROW);
+
+		if (name.equals("<init>")) {
+			Label superExceptionHandler = new Label();
+			mv.visitLabel(superExceptionHandler);
+			mv.visitTryCatchBlock(startSuper, startBody, superExceptionHandler, "java/lang/Throwable");
+			dup();
+			loadCallback();
+			swap();
+			mv.visitLdcInsn(owner);
+			mv.visitLdcInsn(name);
+			mv.visitLdcInsn(methodDesc);
+			mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, callbackInterface, "initExitException",
+					"(Ljava/lang/Throwable;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", true);
+			mv.visitInsn(ATHROW);
+		}
+
 		mv.visitMaxs(maxStack, maxLocals);
 	}
 
@@ -71,6 +104,9 @@ public class TracingMethodVisitor extends AdviceAdapter {
 	protected void onMethodExit(int opcode) {
 		String method;
 		String firstArg;
+
+		if (opcode == ATHROW)
+			return;
 
 		if (opcode == RETURN) {
 			loadCallback();
@@ -82,12 +118,6 @@ public class TracingMethodVisitor extends AdviceAdapter {
 			swap();
 			method = "exitReturn";
 			firstArg = "Ljava/lang/Object;";
-		} else if (opcode == ATHROW) {
-			dup();
-			loadCallback();
-			swap();
-			method = "exitThrow";
-			firstArg = "Ljava/lang/Throwable;";
 		} else {
 			if (opcode == LRETURN || opcode == DRETURN) {
 				dup2();
@@ -105,5 +135,6 @@ public class TracingMethodVisitor extends AdviceAdapter {
 		}
 
 		invokeTracer(method, firstArg);
+
 	}
 }

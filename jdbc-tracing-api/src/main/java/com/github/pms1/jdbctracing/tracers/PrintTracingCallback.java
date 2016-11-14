@@ -39,8 +39,17 @@ public class PrintTracingCallback implements TracingCallback {
 	}
 
 	@Override
-	public void exitThrow(Throwable e, Object instance, String clazz, String method, String signature) {
-		System.out.println("THROW " + clazz + " " + method + " " + signature + " " + id(instance) + " " + id(e));
+	public void initEnter(Object[] args, String clazz, String method, String signature) {
+		System.out.print("ENTER-INIT " + clazz + " " + method + " " + signature + " ");
+		if (args != null)
+			for (Object a : args)
+				System.out.print(" " + id(a));
+		System.out.println();
 	}
 
+	@Override
+	public void initExitException(Throwable t, String clazz, String method, String signature) {
+		System.out.print("EXCEPTION-INIT " + clazz + " " + method + " " + signature + " ");
+		System.out.println();
+	}
 }

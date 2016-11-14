@@ -59,6 +59,10 @@ public class FilterTracingCallback implements TracingCallback {
 	@Override
 	public void enter(Object[] args, Object instance, String clazz, String method, String signature) {
 
+		if (method.equals("<init>")) {
+			t.get().decrementAndGet();
+		}
+
 		int level = t.get().getAndIncrement();
 
 		if (debug)
@@ -114,6 +118,9 @@ public class FilterTracingCallback implements TracingCallback {
 
 				s.get().addLast(new Target(instance, clazz, method, signature));
 			}
+
+			if (method.equals("parseTernaryValue"))
+				new Throwable().printStackTrace();
 
 			next.enter(args, instance, clazz, method, signature);
 		}
@@ -218,22 +225,25 @@ public class FilterTracingCallback implements TracingCallback {
 	}
 
 	@Override
-	public void exitThrow(Throwable e, Object instance, String clazz, String method, String signature) {
-		int level = t.get().get();
+	public void initEnter(Object[] args, String clazz, String method, String signature) {
+		int level = t.get().getAndIncrement();
+
 		if (debug)
-			System.err.println("RAW EXIT-T " + level + " " + clazz + " " + method + " " + signature);
-		if (level == 1) {
-			if (isInvoke(instance, method, signature)) {
-				Target pop = s.get().getLast();
-				if (pop == null)
-					return;
-				instance = pop.instance;
-				clazz = pop.clazz;
-				method = pop.method;
-				signature = pop.signature;
-			}
-			next.exitThrow(e, instance, clazz, method, signature);
-		}
+			System.err.println("RAW INIT " + level + " " + clazz + " " + method + " " + signature);
+
+		if (level == 0)
+			next.initEnter(args, clazz, method, signature);
+	}
+
+	@Override
+	public void initExitException(Throwable e, String clazz, String method, String signature) {
+		int level = t.get().decrementAndGet();
+
+		if (debug)
+			System.err.println("RAW INIT EXCEPTION " + level + " " + clazz + " " + method + " " + signature);
+
+		if (level == 0)
+			next.initExitException(e, clazz, method, signature);
 
 	}
 }
