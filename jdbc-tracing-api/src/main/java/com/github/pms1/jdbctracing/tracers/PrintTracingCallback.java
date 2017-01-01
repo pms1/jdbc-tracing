@@ -5,13 +5,24 @@ import com.github.pms1.jdbctracing.api.TracingCallback;
 public class PrintTracingCallback implements TracingCallback {
 
 	private static String id(Object o) {
-		if (o == null)
+		if (o == null) {
 			return null;
-		else if (o instanceof String || o instanceof Integer || o instanceof Long || o instanceof Double
-				|| o instanceof Float)
+		} else if (o instanceof String || o instanceof Integer || o instanceof Long || o instanceof Double
+				|| o instanceof Float) {
 			return o.toString();
-		else
+		} else if (o instanceof Object[]) {
+			StringBuilder sb = new StringBuilder();
+			String prefix = "";
+			sb.append("[");
+			for (Object o1 : (Object[]) o) {
+				sb.append(prefix).append(id(o1));
+				prefix = ", ";
+			}
+			sb.append("]");
+			return sb.toString();
+		} else {
 			return o.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(o));
+		}
 	}
 
 	@Override
